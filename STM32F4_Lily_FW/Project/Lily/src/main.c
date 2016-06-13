@@ -9,9 +9,13 @@ __IO uint32_t g_ticks = 0; // increments every millisecond
 void timing_delay_decrement(void);
 void delay_ms(uint32_t t);
 void init_UART4();
+void init_I2C1();
 void init_LED();
 void init_blue_push_button();
 uint32_t get_ticks();
+
+#define SA_MAG  0x1E 
+#define SA_GYRO 0x35
 
 int main(void)
 {
@@ -33,8 +37,14 @@ int main(void)
     init_LED();
     init_blue_push_button();
     init_UART4();
+    init_I2C1();
+
+    I2C_SendData(I2C1, (SA_GYRO << 1) | 1); /* read */
+    I2C_SendData(I2C1, 0xF);
+    uint8_t val = I2C_ReceiveData(I2C1);
 
     my_printf("Begin ...\r\n");
+    my_printf("value: %u\r\n", val);
 
     while(1) {
         // Light up the LEDS when the user presses the blue button
@@ -114,6 +124,35 @@ void init_UART4()
 
     /* Enable USART */
     USART_Cmd(UART4, ENABLE);
+}
+
+void init_I2C1()
+{
+    GPIO_InitTypeDef gpio; 
+    I2C_InitTypeDef i2c;
+
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource6, GPIO_AF_I2C1);
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource7, GPIO_AF_I2C1);
+
+    gpio.GPIO_Pin   = GPIO_Pin_6 | GPIO_Pin_7;
+	gpio.GPIO_Mode  = GPIO_Mode_AF;
+	gpio.GPIO_OType = GPIO_OType_OD;
+	gpio.GPIO_PuPd  = GPIO_PuPd_UP;
+	gpio.GPIO_Speed = GPIO_Speed_50MHz;
+
+	GPIO_Init(GPIOB, &gpio);
+
+    I2C_StructInit(&i2c);
+    i2c.I2C_ClockSpeed = 50000;
+    i2c.I2C_Ack = I2C_Ack_Enable;
+
+    //    I2C_DeInit(I2C1);
+    //    I2C_Cmd(I2C1, DISABLE);
+    I2C_Init(I2C1, &i2c);
+    I2C_Cmd(I2C1, ENABLE);
 }
 
 void delay_ms(uint32_t t)
