@@ -14,12 +14,12 @@ void init_LED();
 void init_blue_push_button();
 uint32_t get_ticks();
 
-#define SA_MAG  0x1E 
-#define SA_GYRO 0x35
+//#define SA_MAG  0x1E
+#define SA_GYRO 0xD4
 
 int main(void)
 {
-  /*!< At this stage the microcontroller clock setting is already configured, 
+  /*!< At this stage the microcontroller clock setting is already configured,
        this is done through SystemInit() function which is called from startup
        file (startup_stm32f4xx.s) before to branch to application main.
        To reconfigure the default setting of SystemInit() function, refer to
@@ -27,7 +27,7 @@ int main(void)
      */
 
     // Enable Usage Fault, Bus Fault, and MMU Fault, else it will default to HardFault handler
-    //SCB->SHCSR |= 0x00070000; 
+    //SCB->SHCSR |= 0x00070000;
 
     RCC_ClocksTypeDef RCC_Clocks;
 
@@ -39,8 +39,32 @@ int main(void)
     init_UART4();
     init_I2C1();
 
-    I2C_SendData(I2C1, (SA_GYRO << 1) | 1); /* read */
+    //I2C_Direction_Transmitter
+
+    I2C_GenerateSTART(I2C1, ENABLE);
+    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT) != SUCCESS)
+        ;
+    I2C_Send7bitAddress(I2C1, SA_GYRO, I2C_Direction_Transmitter);
+    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) != SUCCESS) {
+        //        my_printf("waiting receiver...\n");
+    }
+
+    //    I2C_SendData(I2C1, (SA_GYRO << 1) | 1); /* read */
     I2C_SendData(I2C1, 0xF);
+    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED) != SUCCESS) {
+        //        my_printf("waiting receiver...\n");
+    }
+    I2C_GenerateSTART(I2C1, ENABLE);
+    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT) != SUCCESS)
+        ;
+    I2C_Send7bitAddress(I2C1, SA_GYRO, I2C_Direction_Receiver);
+    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED) != SUCCESS) {
+        //        my_printf("waiting receiver...\n");
+    }
+    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_RECEIVED) != SUCCESS) {
+        //        my_printf("waiting receiver...\n");
+    }
+
     uint8_t val = I2C_ReceiveData(I2C1);
 
     my_printf("Begin ...\r\n");
@@ -50,7 +74,7 @@ int main(void)
         // Light up the LEDS when the user presses the blue button
         if (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0)) {
     		GPIO_SetBits(GPIOD, GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 |  GPIO_Pin_15);
-    	} 
+    	}
         else {
     		GPIO_ResetBits(GPIOD, GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 |  GPIO_Pin_15);
     	}
@@ -110,7 +134,7 @@ void init_UART4()
 
     /* Connect PXx to USARTx_Rx*/
     GPIO_PinAFConfig( GPIOC, GPIO_PinSource11, GPIO_AF_UART4);
- 
+
     /* Configure USART Tx as alternate function  */
     gpio.GPIO_OType = GPIO_OType_PP;
     gpio.GPIO_PuPd  = GPIO_PuPd_UP;
@@ -128,14 +152,14 @@ void init_UART4()
 
 void init_I2C1()
 {
-    GPIO_InitTypeDef gpio; 
+    GPIO_InitTypeDef gpio;
     I2C_InitTypeDef i2c;
 
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 
-    GPIO_PinAFConfig(GPIOC, GPIO_PinSource6, GPIO_AF_I2C1);
-    GPIO_PinAFConfig(GPIOC, GPIO_PinSource7, GPIO_AF_I2C1);
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_I2C1);
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_I2C1);
 
     gpio.GPIO_Pin   = GPIO_Pin_6 | GPIO_Pin_7;
 	gpio.GPIO_Mode  = GPIO_Mode_AF;
@@ -147,7 +171,7 @@ void init_I2C1()
 
     I2C_StructInit(&i2c);
     i2c.I2C_ClockSpeed = 50000;
-    i2c.I2C_Ack = I2C_Ack_Enable;
+    //i2c.I2C_Ack = I2C_Ack_Enable;
 
     //    I2C_DeInit(I2C1);
     //    I2C_Cmd(I2C1, DISABLE);
@@ -164,7 +188,7 @@ void delay_ms(uint32_t t)
 
 void timing_delay_decrement(void)
 {
-    if (g_timing_delay != 0x00) { 
+    if (g_timing_delay != 0x00) {
         g_timing_delay--;
     }
 }
@@ -183,7 +207,7 @@ uint32_t get_ticks()
   * @retval None
   */
 void assert_failed(uint8_t* file, uint32_t line)
-{ 
+{
   /* User can add his own implementation to report the file name and line number,
      ex: my_printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
 
@@ -193,4 +217,3 @@ void assert_failed(uint8_t* file, uint32_t line)
   }
 }
 #endif
-
