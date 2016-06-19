@@ -2,6 +2,7 @@
 #include "stm32f4xx.h"
 #include "stm32f4_discovery.h"
 #include "my_printf.h"
+#include "lsm9ds0.h"
 
 __IO uint32_t g_timing_delay;
 __IO uint32_t g_ticks = 0; // increments every millisecond
@@ -14,7 +15,7 @@ void init_LED();
 void init_blue_push_button();
 uint32_t get_ticks();
 
-//#define SA_MAG  0x1E
+#define SA_MAG  0x3C
 #define SA_GYRO 0xD4
 
 int main(void)
@@ -38,37 +39,13 @@ int main(void)
     init_blue_push_button();
     init_UART4();
     init_I2C1();
+    uint8_t foo[1] = {0};
+    
+    //    int val = lsmRegRead(SA_GYRO, 0xF, 1, &foo);
+    lsmRegRead(SA_MAG, 0x24, 1, foo);
 
-    //I2C_Direction_Transmitter
-
-    I2C_GenerateSTART(I2C1, ENABLE);
-    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT) != SUCCESS)
-        ;
-    I2C_Send7bitAddress(I2C1, SA_GYRO, I2C_Direction_Transmitter);
-    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) != SUCCESS) {
-        //        my_printf("waiting receiver...\n");
-    }
-
-    //    I2C_SendData(I2C1, (SA_GYRO << 1) | 1); /* read */
-    I2C_SendData(I2C1, 0xF);
-    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED) != SUCCESS) {
-        //        my_printf("waiting receiver...\n");
-    }
-    I2C_GenerateSTART(I2C1, ENABLE);
-    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT) != SUCCESS)
-        ;
-    I2C_Send7bitAddress(I2C1, SA_GYRO, I2C_Direction_Receiver);
-    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED) != SUCCESS) {
-        //        my_printf("waiting receiver...\n");
-    }
-    while (I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_RECEIVED) != SUCCESS) {
-        //        my_printf("waiting receiver...\n");
-    }
-
-    uint8_t val = I2C_ReceiveData(I2C1);
-
+    my_printf("values: %u\r\n", foo[0]);// foo[1], foo[2]);
     my_printf("Begin ...\r\n");
-    my_printf("value: %u\r\n", val);
 
     while(1) {
         // Light up the LEDS when the user presses the blue button
@@ -171,8 +148,8 @@ void init_I2C1()
 
     I2C_StructInit(&i2c);
     i2c.I2C_ClockSpeed = 50000;
-    //i2c.I2C_Ack = I2C_Ack_Enable;
 
+    /* may need these if we ever expect the i2c peripheral to be re-initialized  */
     //    I2C_DeInit(I2C1);
     //    I2C_Cmd(I2C1, DISABLE);
     I2C_Init(I2C1, &i2c);

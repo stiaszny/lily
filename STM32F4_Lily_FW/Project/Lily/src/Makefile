@@ -1,7 +1,7 @@
 # Put your stlink folder here so make burn will work.
 STLINK=../../../stlink
 
-SRCS=main.c system_stm32f4xx.c stm32f4xx_it.c newlib_stubs.c my_printf.c
+SRCS=main.c system_stm32f4xx.c stm32f4xx_it.c newlib_stubs.c my_printf.c lsm9ds0.c
 
 # Library modules
 SRCS += stm32f4xx_gpio.c stm32f4xx_rcc.c stm32f4xx_usart.c stm32f4xx_dma.c stm32f4xx_sdio.c stm32f4xx_syscfg.c stm32f4xx_exti.c misc.c stm32f4xx_i2c.c stm32f4xx_spi.c
