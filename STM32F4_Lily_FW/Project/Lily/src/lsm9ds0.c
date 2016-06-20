@@ -1,9 +1,8 @@
 /* i2c driver for the STM LSM9SD0 9 DOF IMU */
-#include <stdint.h>
-
 #include "stm32f4xx_conf.h"
 #include "stm32f4xx.h"
 #include "stm32f4_discovery.h"
+#include "lsm9ds0.h"
 
 #define I2C_PERIPH  I2C1
 
@@ -52,8 +51,8 @@ void lsmRegRead(uint8_t i2cAddr, uint8_t regAddr, uint16_t numBytes, uint8_t *re
     }
 
     if (numBytes == 2) {
-        /* according the ref. man. POS should be set HIGH before (and
-           ACK disabled) clearing ADDR, which CheckEvent will do
+        /* according the ref. man. POS should be set HIGH (and ACK
+           disabled) before clearing ADDR, which CheckEvent will do
            inherently.  Lovely. Let's see if it works... */
         I2C_AcknowledgeConfig(I2C_PERIPH, DISABLE);
         I2C_NACKPositionConfig(I2C_PERIPH, I2C_NACKPosition_Next);
@@ -69,7 +68,6 @@ void lsmRegRead(uint8_t i2cAddr, uint8_t regAddr, uint16_t numBytes, uint8_t *re
 
     if (numBytes > 2) {
         for ( i = 0; i < numBytes; i++) {
-
             if ( i < numBytes - 3) {
                 while (I2C_CheckEvent(I2C_PERIPH, I2C_EVENT_MASTER_BYTE_RECEIVED) != SUCCESS) {
                     count++;
@@ -95,6 +93,39 @@ void lsmRegRead(uint8_t i2cAddr, uint8_t regAddr, uint16_t numBytes, uint8_t *re
     return;
 }
 
-//lsmReadMag();
-//lsmReadAccel();
-//lsmReadGyro();
+void lsmReadMag(uint8_t *result)
+{
+    lsmRegRead(SA_MAG, REG_ADDR_DATA_MAG, 6, result);
+}
+
+void lsmReadAccel(uint8_t *result)
+{
+    lsmRegRead(SA_MAG, REG_ADDR_DATA_ACCEL, 6, result); 
+}
+
+void lsmReadGyro(uint8_t *result)
+{
+    lsmRegRead(SA_MAG, REG_ADDR_DATA_ACCEL, 6, result); 
+}
+
+bool isDataReady(SensorType sensor)
+{
+    uint8_t val;
+    switch(sensor) {
+    case MAG:
+        lsmRegRead(SA_MAG, REG_ADDR_STATUS_MAG, 1, &val);
+        break;
+    case ACCEL:
+        /* accel & mag on same addr - not copypasta! */
+        lsmRegRead(SA_MAG, REG_ADDR_STATUS_ACCEL, 1, &val);
+        break;
+    case GYRO:
+        lsmRegRead(SA_GYRO, REG_ADDR_STATUS_GYRO, 1, &val);
+        break;
+    }
+
+    if ((val & DATA_AVAILABLE_MASK) != 0) 
+        return true;
+    else
+        return false;
+}

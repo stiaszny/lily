@@ -15,9 +15,6 @@ void init_LED();
 void init_blue_push_button();
 uint32_t get_ticks();
 
-#define SA_MAG  0x3C
-#define SA_GYRO 0xD4
-
 int main(void)
 {
   /*!< At this stage the microcontroller clock setting is already configured,
@@ -39,12 +36,22 @@ int main(void)
     init_blue_push_button();
     init_UART4();
     init_I2C1();
-    uint8_t foo[3] = {0};
+    uint8_t accel[6] = {0};
+    uint8_t val;
+    lsmRegRead(SA_MAG, 0x20, 1, &val);
+    my_printf("CR1 MAG: %u\r\n", val);
     
-    //    int val = lsmRegRead(SA_GYRO, 0xF, 1, &foo);
-    lsmRegRead(SA_MAG, 0x24, 3, foo);
+    if (isDataReady(ACCEL)) {
+        int16_t *ptr;
+        ptr = (int16_t *)accel;
+        lsmReadAccel(accel);
+        my_printf("values: %u %u %u\r\n", ptr[0], ptr[1], ptr[2]);
+    }
 
-    my_printf("values: %u %u %u\r\n", foo[0], foo[1], foo[2]);
+    //    int val = lsmRegRead(SA_GYRO, 0xF, 1, &foo);
+    // lsmRegRead(SA_MAG, 0x24, 3, foo);
+
+    //    my_printf("values: %u %u %u\r\n", foo[0], foo[1], foo[2]);
     my_printf("Begin ...\r\n");
 
     while(1) {
