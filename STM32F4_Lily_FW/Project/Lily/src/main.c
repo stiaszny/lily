@@ -49,10 +49,6 @@ int main(void)
     configureAccel();
     configureGyro();
 
-    //    int val = lsmRegRead(SA_GYRO, 0xF, 1, &foo);
-    // lsmRegRead(SA_MAG, 0x24, 3, foo);
-
-    //    my_printf("values: %u %u %u\r\n", foo[0], foo[1], foo[2]);
     my_printf("Begin ...\r\n");
 
     while(1) {
