@@ -7,6 +7,11 @@
 __IO uint32_t g_timing_delay;
 __IO uint32_t g_ticks = 0; // increments every millisecond
 
+/* in an RTOS, we get semaphores! */
+bool accelDataReady = false;
+bool magDataReady = false;
+bool gyroDataReady = false;
+
 void timing_delay_decrement(void);
 void delay_ms(uint32_t t);
 void init_UART4();
@@ -14,6 +19,8 @@ void init_I2C1();
 void init_LED();
 void init_blue_push_button();
 uint32_t get_ticks();
+
+void checkDataReady(void);
 
 int main(void)
 {
@@ -36,17 +43,11 @@ int main(void)
     init_blue_push_button();
     init_UART4();
     init_I2C1();
-    uint8_t accel[6] = {0};
-    uint8_t val;
-    lsmRegRead(SA_MAG, 0x20, 1, &val);
-    my_printf("CR1 MAG: %u\r\n", val);
-    
-    if (isDataReady(ACCEL)) {
-        int16_t *ptr;
-        ptr = (int16_t *)accel;
-        lsmReadAccel(accel);
-        my_printf("values: %u %u %u\r\n", ptr[0], ptr[1], ptr[2]);
-    }
+
+    /* must be done after i2c init */
+    configureMag();
+    configureAccel();
+    configureGyro();
 
     //    int val = lsmRegRead(SA_GYRO, 0xF, 1, &foo);
     // lsmRegRead(SA_MAG, 0x24, 3, foo);
@@ -62,6 +63,42 @@ int main(void)
         else {
     		GPIO_ResetBits(GPIOD, GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 |  GPIO_Pin_15);
     	}
+
+        checkDataReady();
+    }
+}
+
+void checkDataReady(void) {
+    uint8_t data[6] = {0};
+    static int accelCount = 0;
+    static int magCount = 0;
+    static int gyroCount = 0;
+    int16_t *ptr;
+    ptr = (int16_t *)data;
+
+    if (accelDataReady == true) {
+        accelDataReady = false;
+        lsmReadSensor(ACCEL, data);
+        accelCount++;
+        if (accelCount % 10 == 0) {
+            my_printf("Accel: %d %d %d\r\n", ptr[0], ptr[1], ptr[2]);
+        }
+    }
+    if (magDataReady == true) {
+        magDataReady = false;
+        lsmReadSensor(MAG, data);
+        magCount++;
+        if (magCount % 100 == 0) {
+            my_printf("Mag:   %d %d %d\r\n", ptr[0], ptr[1], ptr[2]);
+        }
+    }
+    if (gyroDataReady == true) {
+        gyroDataReady = false;
+        lsmReadSensor(GYRO, data);
+        gyroCount++;
+        if (gyroCount % 100 == 0) {
+            my_printf("Gyro:  %d %d %d\r\n", ptr[0], ptr[1], ptr[2]);
+        }
     }
 }
 
@@ -154,7 +191,7 @@ void init_I2C1()
 	GPIO_Init(GPIOB, &gpio);
 
     I2C_StructInit(&i2c);
-    i2c.I2C_ClockSpeed = 50000;
+    i2c.I2C_ClockSpeed = 100000; /* clock looked a little funny when I turned it up to 400 kHz */
 
     /* may need these if we ever expect the i2c peripheral to be re-initialized  */
     //    I2C_DeInit(I2C1);
@@ -181,6 +218,7 @@ uint32_t get_ticks()
 {
     return g_ticks;
 }
+
 
 #ifdef  USE_FULL_ASSERT
 /**
